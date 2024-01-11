@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    canvas {
+      border: 1px solid #000;
+      display: block;
+      margin: 20px auto;
+      background-color: #87CEEB; /* Cor do céu */
+    }
+  </style>
+  <title>Game Tycoon Educativo</title>
+</head>
+<body>
+
+<canvas id="gameCanvas" width="1280" height="480"></canvas>
+<p>Moedas: <span id="coins">0</span></p>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const clouds = [];
+  const grass = [];
+
+  const player = {
+    x: 50,
+    y: canvas.height - 30,
+    width: 30,
+    height: 30,
+    color: 'blue',
+    jumpForce: 15,
+    isJumping: false,
+  };
+
+  const coins = [];
+  const items = [
+    { name: 'Livro', cost: 50, income: 1 },
+    { name: 'Caderno de 1 matéria', cost: 75, income: 2 },
+    { name: 'Smartphone', cost: 100, income: 3 },
+    { name: 'Computador', cost: 150, income: 4 },
+    { name: 'Caneta Tinteiro Montblank', cost: 200, income: 5 },
+    { name: 'Licença Original Windows 10', cost: 300, income: 6 },
+    { name: 'Serviço VPN ilimitado', cost: 350, income: 7 },
+    { name: 'Calmante', cost: 400, income: 8 },
+    { name: 'Perfume Igeo', cost: 450, income: 9 },
+    { name: 'Vida social', cost: 1000, income: 10 },
+    // Adicione mais itens educativos e tecnológicos aqui
+  ];
+
+  let coinsCollected = 0;
+
+    // Adiciona o evento de clique no canvas para pular
+    canvas.addEventListener('click', () => {
+    jump();
+  });
+
+  // Adiciona o evento de clique no canvas para abrir a loja e comprar itens
+  canvas.addEventListener('click', (event) => {
+    const mouseX = event.clientX - canvas.getBoundingClientRect().left;
+    const mouseY = event.clientY - canvas.getBoundingClientRect().top;
+
+    // Verifica se o clique foi na área do botão da loja
+    if (mouseX > canvas.width - 150 && mouseY < canvas.height) {
+      openShop();
+    }
+
+    // Verifica se o clique foi na área de algum botão de compra
+    items.forEach((item, index) => {
+      const buttonX = canvas.width - 140;
+      const buttonY = 30 * index + 20 + 35;
+      const buttonWidth = 100;
+      const buttonHeight = 20;
+
+      if (
+        mouseX > buttonX &&
+        mouseX < buttonX + buttonWidth &&
+        mouseY > buttonY &&
+        mouseY < buttonY + buttonHeight
+      ) {
+        buyItem(index);
+      }
+    });
+  });
+
+
+  function drawPlayer() {
+    ctx.fillStyle = player.color;
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+  }
+
+  function drawCoins() {
+    ctx.fillStyle = 'yellow';
+    coins.forEach((coin) => {
+      ctx.beginPath();
+      ctx.arc(coin.x, coin.y, coin.radius, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  function drawItems(){
+
+    // Desenhe a loja e os itens disponíveis para compra
+    ctx.fillStyle = 'brown';
+    ctx.fillRect(canvas.width - 250, 0, 250, canvas.height);
+
+    ctx.fillStyle = 'white';
+    ctx.font = '16px Times';
+
+    items.forEach((item, index) => {
+      const itemY = 30 * index + 20;
+
+    // Desenhe o ícone do item (pode ser substituído por imagens)
+    ctx.fillStyle = 'yellow';
+    ctx.fillRect(canvas.width - 240, itemY - 5, 20, 20);
+
+    // Desenhe o nome do item
+    ctx.fillStyle = 'white';
+    ctx.fillText(item.name, canvas.width - 210, itemY + 10);
+
+    // Desenhe o custo do item
+    ctx.fillStyle = 'white';
+    ctx.fillText(` ${item.cost} moedas`, canvas.width - 90, itemY + 10);
+
+    // Desenhe o botão de compra
+    const buttonX = canvas.width - 110;
+    const buttonY = itemY + 25;
+    const buttonWidth = 100;
+    const buttonHeight = 20;
+
+    ctx.fillStyle = coinsCollected >= item.cost ? 'green' : 'red';
+    ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+
+    ctx.fillStyle = 'white';
+    ctx.fillText('Comprar', buttonX + 25, buttonY + 14);
+  });
+  }
+
+
+  function drawClouds() {
+    ctx.fillStyle = 'white';
+    clouds.forEach((cloud) => {
+      ctx.beginPath();
+      ctx.arc(cloud.x, cloud.y, cloud.radius, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  function drawGrass() {
+    ctx.fillStyle = '#00A300'; // Cor verde para a grama
+    grass.forEach((grassPatch) => {
+      ctx.fillRect(grassPatch.x, grassPatch.y, grassPatch.width, grassPatch.height);
+    });
+  }
+  
+  function update() {
+    if (player.isJumping) {
+      // Adiciona a condição para limitar a altura do pulo
+      if (player.y > canvas.height - 200) {
+        player.y -= player.jumpForce;
+      } else {
+        player.isJumping = false;
+      }
+    } else if (player.y < canvas.height - 30) {
+      // Faz com que o jogador desça após o pulo
+      player.y += player.jumpForce;
+    }
+
+    // Adiciona nuvens e grama ao cenário
+      clouds.forEach((cloud) => {
+      cloud.x -= player.speed * 0.5; // Ajuste para fazer as nuvens se moverem mais devagar que o jogador
+    });
+
+    // Repete a grama na tela
+    for (let i = 0; i < canvas.width / 100; i++) {
+      const grassPatch = {
+        x: i * 100 - (player.x % 100), // Repete a grama na tela movendo com o jogador
+        y: canvas.height - 20,
+        width: 100,
+        height: 20,
+      };
+      grass.push(grassPatch);
+    }
+
+    // Limite para que o jogador não saia fora do cenário
+    if (player.x < 0) {
+      player.x = 0;
+    }
+
+  coins.forEach((coin, index) => {
+    if (checkCollision(player, coin)) {
+      coinsCollected += 1;
+      coins.splice(index, 1);
+    }
+  });
+
+  if (coinsCollected >= 1000000) {
+    alert('Parabéns! Você coletou 1 milhão de moedas. Você venceu o jogo!');
+    resetGame();
+  }
+
+  draw();
+  saveGame(); // Chame a função de salvar no final do update
+  requestAnimationFrame(update);
+
+  // Função para salvar o estado do jogo
+function saveGame() {
+  const gameState = {
+    coinsCollected,
+    items,
+    // Adicione outros estados do jogo que você queira salvar
+  };
+  localStorage.setItem('gameState', JSON.stringify(gameState));
+}
+}
+
+    // Atualize o status dos itens comprados pelo jogador
+    // ...
+    loadGame(); // Chame a função de carregar no início do jogo
+    setInterval(spawnCoins, 1000);
+    update();
+
+    // Função para carregar o estado do jogo
+function loadGame() {
+  const savedGameState = localStorage.getItem('gameState');
+  if (savedGameState) {
+    const parsedGameState = JSON.parse(savedGameState);
+    coinsCollected = parsedGameState.coinsCollected;
+    // Atualize outros estados do jogo conforme necessário
+    items.forEach((item, index) => {
+      if (parsedGameState.items[index]) {
+        item.cost = parsedGameState.items[index].cost;
+        item.income = parsedGameState.items[index].income;
+        // Adicione outros atributos dos itens conforme necessário
+      }
+    });
+  }
+}
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawPlayer();
+    drawCoins();
+    drawItems();
+    document.getElementById('coins').innerText = coinsCollected;
+  }
+
+  function jump() {
+    if (!player.isJumping) {
+      player.isJumping = true;
+      setTimeout(() => {
+        player.isJumping = false;
+      }, 500);
+    }
+  }
+
+  function checkCollision(obj1, obj2) {
+    return (
+      obj1.x < obj2.x + obj2.radius &&
+      obj1.x + obj1.width > obj2.x &&
+      obj1.y < obj2.y + obj2.radius &&
+      obj1.y + obj1.height > obj2.y
+    );
+  }
+
+  function resetGame() {
+    coinsCollected = 0;
+    // Reinicie outros estados do jogo conforme necessário
+  }
+
+  function spawnCoins() {
+    const coin = {
+      x: Math.random() * (canvas.width - 20) + 10,
+      y: Math.random() * (canvas.height - 20) + 10,
+      radius: 10,
+    };
+    coins.push(coin);
+    setTimeout(() => {
+      coins.shift();
+    }, 5000);
+  }
+
+  function openShop() {
+    // Lógica para abrir a loja
+    // ...
+  }
+
+  function buyItem(itemIndex) {
+    // Lógica para comprar um item
+    // ...
+  }
+
+  function generateClouds() {
+    for (let i = 0; i < 3; i++) {
+      const cloud = {
+        x: Math.random() * canvas.width,
+        y: Math.random() * 100,
+        radius: 30,
+      };
+      clouds.push(cloud);
+    }
+  }
+
+  function generateGrass() {
+    for (let i = 0; i < canvas.width / 100; i++) {
+      const grassPatch = {
+        x: i * 100,
+        y: canvas.height - 20,
+        width: 100,
+        height: 20,
+      };
+      grass.push(grassPatch);
+      }
+    }
+    function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawGrass();
+    drawClouds();
+    drawItems();
+    drawCoins();
+    drawPlayer();
+    document.getElementById('coins').innerText = coinsCollected;
+  }
+
+  // Inicialização do jogo
+  loadGame();
+  setInterval(spawnCoins, 1000);
+  generateClouds();
+  update();
+</script>
+
+</body>
+</html>
